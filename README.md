@@ -1,6 +1,6 @@
-# 🤖 Persistent Sales Assistant Agent
+# Persistent Sales Assistant Agent
 
-> A production-grade AI Sales Assistant API — with persistent cross-session memory, real tool calling, and self-evaluation on every response.
+A production-grade AI Sales Assistant API with persistent cross-session memory, real tool calling, and self-evaluation on every response.
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-orange)](https://console.groq.com)
@@ -10,102 +10,46 @@
 
 ---
 
-## 🌐 Live URL
+## Live Deployments
 
-```
-https://YOUR-APP.up.railway.app
-```
-> Replace with your Railway URL after deployment.
+* **Frontend Web Application**: https://infoware-xi.vercel.app/
+* **Backend REST API**: https://infoware-production-6459.up.railway.app/
 
 ---
 
-## 📐 Architecture
+## Architecture and Message Flow
 
-### Message Flow Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLIENT REQUEST                           │
-│              POST /chat/{user_id}  {"message": "..."}           │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      FastAPI Route Handler                      │
-│                    app/api/chat.py                              │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       Chat Service                              │
-│                 app/services/chat_service.py                    │
-│  1. Generate session_id (UUID)                                  │
-│  2. Save user message → Supabase DB                             │
-└────────────────┬──────────────────────────────────┬────────────┘
-                 │                                  │
-                 ▼                                  ▼
-┌────────────────────────────┐      ┌───────────────────────────────┐
-│       Memory Layer         │      │         Agent Loop            │
-│  app/memory/               │      │    app/agents/agent.py        │
-│  supabase_memory.py        │◄─────│                               │
-│                            │      │  • Inject DB history context  │
-│  - get_recent_context()    │      │  • Send to Groq with tools    │
-│  - save_message()          │      │  • Handle tool_calls          │
-│  - clear_memory()          │      │  • Loop until "stop"          │
-└────────────────────────────┘      └──────────────┬────────────────┘
-                                                   │
-                          ┌────────────────────────┤
-                          │         TOOLS          │
-                          ▼                        ▼                        ▼
-              ┌─────────────────┐    ┌──────────────────────┐   ┌──────────────────┐
-              │ search_catalog  │    │  get_user_memory     │   │ flag_for_human   │
-              │                 │    │                      │   │                  │
-              │ Keyword search  │    │ Real DB query via    │   │ Writes to        │
-              │ over            │    │ MemoryInterface      │   │ flagged_logs     │
-              │ catalog.json    │    │ (PostgreSQL)         │   │ table            │
-              └────────┬────────┘    └──────────┬───────────┘   └────────┬─────────┘
-                       │                        │                        │
-                       └────────────────────────┴────────────────────────┘
-                                                │
-                                                ▼
-                                 ┌──────────────────────────┐
-                                 │      Groq LLM            │
-                                 │  llama-3.3-70b-versatile │
-                                 │                          │
-                                 │  Generates final         │
-                                 │  response text           │
-                                 └──────────────┬───────────┘
-                                                │
-                                                ▼
-                               ┌────────────────────────────────┐
-                               │       Eval Service             │
-                               │  app/services/eval_service.py  │
-                               │                                │
-                               │  Second Groq LLM call:         │
-                               │  • groundedness score          │
-                               │  • relevance score             │
-                               │  • confidence score            │
-                               │  • flagged (bool)              │
-                               │  • reasoning (text)            │
-                               └──────────────┬─────────────────┘
-                                              │
-                                              ▼
-                               ┌────────────────────────────────┐
-                               │   Save to Supabase DB          │
-                               │   (response + eval + tools)    │
-                               └──────────────┬─────────────────┘
-                                              │
-                                              ▼
-                               ┌────────────────────────────────┐
-                               │      ChatResponse JSON         │
-                               │  {response, eval, tools_called,│
-                               │   session_id, user_id}         │
-                               └────────────────────────────────┘
+```mermaid
+graph TD
+    Client[Client Request] -->|POST /chat/{user_id}| FastAPI[FastAPI Route Handler]
+    FastAPI -->|Request Payload| ChatService[Chat Service]
+    
+    subgraph Service Layer
+        ChatService -->|1. Save User Message| DB[(Supabase PostgreSQL)]
+        ChatService -->|2. Invoke Agent Loop| AgentLoop[Agent Loop]
+        AgentLoop -->|3. Retrieve History| MemoryLayer[Memory Layer]
+        MemoryLayer <--> DB
+        AgentLoop -->|4. Call Tools| Tools{Tools}
+        Tools -->|search_catalog| SearchCatalog[search_catalog]
+        Tools -->|get_user_memory| GetUserMemory[get_user_memory]
+        Tools -->|flag_for_human| FlagForHuman[flag_for_human]
+        
+        SearchCatalog -->|Read| CatalogJson[(catalog.json)]
+        GetUserMemory -->|Query| DB
+        FlagForHuman -->|Write Log| DB
+        
+        AgentLoop -->|5. Generate Response| LLM[Groq LLM Llama-3.3-70b-versatile]
+        ChatService -->|6. Run Evaluation| EvalService[Evaluation Service]
+        EvalService -->|Assess Groundedness & Relevance| EvalLLM[Groq LLM Evaluator]
+        EvalService -->|7. Save Evaluation & Final Response| DB
+    end
+    
+    ChatService -->|8. Return Response & Evals| Client
 ```
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 app/
@@ -117,7 +61,7 @@ app/
 │   ├── agent.py            # Main Groq tool-calling agent loop
 │   └── eval.py             # Eval system prompt and prompt builder
 │
-├── memory/                 # ABSTRACTED memory layer
+├── memory/                 # Abstracted memory layer
 │   ├── memory_interface.py # Abstract base class (MemoryInterface)
 │   └── supabase_memory.py  # PostgreSQL implementation (swap here for new backend)
 │
@@ -127,7 +71,7 @@ app/
 │   └── flag_for_human.py   # Escalation to flagged_logs table
 │
 ├── services/               # Business logic / orchestration
-│   ├── chat_service.py     # Full pipeline: save → agent → eval → save → respond
+│   ├── chat_service.py     # Full pipeline: save -> agent -> eval -> save -> respond
 │   └── eval_service.py     # Self-evaluation via second Groq LLM call
 │
 ├── models/
@@ -149,81 +93,150 @@ railway.toml
 
 ---
 
-## 🚀 Quick Start
+## Quick Start and Local Running Guide
 
 ### Prerequisites
-- Python 3.11+
-- A [Groq API key](https://console.groq.com) (free tier works)
-- A [Supabase project](https://supabase.com) (free tier works)
+* Python 3.11 or higher
+* Groq API Key (from console.groq.com)
+* Supabase PostgreSQL Database URI (with pgvector/SSL support)
 
-### 1. Clone and install
+### 1. Local Setup and Installation
 
+Clone the repository and navigate to the project directory:
 ```bash
-git clone https://github.com/YOUR_USERNAME/sales-assistant-agent.git
-cd sales-assistant-agent
+git clone https://github.com/GhanshyamDewangan/Infoware.git
+cd Infoware
+```
 
-python -m venv venv
+Create and activate a virtual environment:
+```bash
 # Windows:
+python -m venv venv
 venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
 
+# macOS/Linux:
+python -m venv venv
+source venv/bin/activate
+```
+
+Install dependencies:
+```bash
 pip install -r requirements.txt --prefer-binary
 ```
 
-### 2. Configure environment
+### 2. Environment Configuration
 
+Copy the example environment file and configure it:
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit the `.env` file with your credentials:
 ```env
-GROQ_API_KEY=gsk_your_key_here
+GROQ_API_KEY=gsk_your_groq_api_key_here
 DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
+GROQ_MODEL=llama-3.3-70b-versatile
+APP_NAME=Sales Assistant Agent
+APP_VERSION=1.0.0
+DEBUG=false
+MEMORY_CONTEXT_LIMIT=20
+EVAL_CONFIDENCE_THRESHOLD=0.70
 ```
 
-> **Supabase DB URL**: Go to Supabase Dashboard → Settings → Database → Connection String (URI mode) → copy the URI and change `postgresql://` to `postgresql+asyncpg://`
+Note: Supabase Connection URI must use `postgresql+asyncpg://` as the protocol for async SQLAlchemy compatibility.
 
-### 3. Open the frontend
+### 3. Run Locally
 
-No build step needed — just open the HTML file directly in your browser:
-
-```
-frontend/index.html
-```
-
-Or, if the backend is running, open it in your browser via the file system. The UI will prompt you for:
-- **User ID** — any string (e.g., `ghanshyam`)
-- **API URL** — defaults to `http://localhost:8000`, change to your Railway URL for production
-
+Start the Uvicorn development server:
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
-
-API docs available at: http://localhost:8000/docs
+* Interactive Swagger API docs will be available at: http://localhost:8000/docs
+* Open `frontend/index.html` directly in your browser. The frontend UI contains a hidden input field that automatically points to your production backend. For local testing, you can change the API URL configuration in the UI or let it connect to the default live URL.
 
 ### 4. Run with Docker
 
+Alternatively, build and run using Docker Compose:
 ```bash
 docker-compose up --build
 ```
+This starts the backend application inside a container mapping port 8000.
 
 ---
 
-## 🔗 API Reference
+## Deployment Instructions
 
-### `POST /chat/{user_id}`
-Send a message. Get a response with self-eval scores.
+### Deploy Backend on Railway
 
-**Request:**
+1. Push your code to GitHub.
+2. Log in to [railway.app](https://railway.app) and create a New Project.
+3. Choose Deploy from GitHub repo and select the Infoware repository.
+4. Go to the Variables tab of the newly created service and add:
+   * `GROQ_API_KEY`: Your Groq API credentials.
+   * `DATABASE_URL`: Your Supabase connection string.
+   * `GROQ_MODEL`: `llama-3.3-70b-versatile`.
+   * `DEBUG`: `false`.
+   * `MEMORY_CONTEXT_LIMIT`: `20`.
+   * `EVAL_CONFIDENCE_THRESHOLD`: `0.70`.
+5. Go to the Settings tab -> Networking -> click Generate Domain. Railway will compile the codebase using the Dockerfile and Nixpacks configuration and launch it.
+
+### Deploy Frontend on Vercel
+
+1. Log in to [vercel.com](https://vercel.com).
+2. Choose Add New -> Project -> import your Infoware repository.
+3. Edit the Root Directory setting to select the `frontend` folder.
+4. Click Deploy. Vercel will host the static frontend files and update automatically on every commit.
+
+---
+
+## Testing Scenarios and Queries
+
+Use these test queries in your frontend interface to validate the system's capabilities:
+
+### Test Case 1: Catalog Tool Verification
+These queries verify that the agent successfully fetches information from the local mock catalog instead of hallucinating:
+* **Query**: "What is the pricing for the Growth plan, and does it include custom roles?"
+  * **Expected Behavior**: Agent calls `search_catalog` and responds that the plan is $199/mo and includes custom roles.
+* **Query**: "Do you offer an on-premise deployment option?"
+  * **Expected Behavior**: Agent retrieves that on-premise deployment is exclusive to the Enterprise plan ($499/mo) and details it.
+* **Query**: "Is there any discount for startups?"
+  * **Expected Behavior**: Agent references the FAQ portion of the catalog and answers that startups get a 30% discount.
+
+### Test Case 2: Cross-Session Memory Verification
+These sequential queries verify that the database-backed memory successfully keeps track of conversation contexts across separate sessions:
+* **Query 1**: "Hi, I am looking for a plan for my team of 15 users. What do you recommend?"
+  * **Expected Behavior**: Agent recommends the Growth plan (which supports up to 25 users).
+* **Query 2**: "How much storage will I get with the plan we just discussed?"
+  * **Expected Behavior**: Agent remembers the recommended plan and responds: "The Growth plan includes 100 GB of storage."
+* **Query 3**: "What is the SLA for this plan?"
+  * **Expected Behavior**: Agent correctly remembers the plan is Growth and responds: "The uptime SLA for the Growth plan is 99.9%."
+
+### Test Case 3: Human Escalation Tool Verification
+These queries test the agent's logic for executing the `flag_for_human` tool when encountering requests outside its predefined boundaries:
+* **Query**: "I want a custom 50% discount for my company. Can you authorize this?"
+  * **Expected Behavior**: Agent detects it lacks authorization, calls `flag_for_human`, flags the response, and tells the user that the request has been escalated to sales (sales@saasco.io).
+* **Query**: "My API is throwing a 502 Bad Gateway error. How do I fix my database connection?"
+  * **Expected Behavior**: Agent recognizes it is a sales bot, not a support tech, calls `flag_for_human`, and directs the user to support (support@saasco.io).
+
+### Test Case 4: Evaluation and Scoring Verification
+* Examine the metrics section underneath every bot response.
+* Check that `groundedness`, `relevance`, and `confidence` scores are populated between 0.00 and 1.00.
+* Confirm that any query failing the evaluation threshold (confidence < 0.70) receives the Flagged badge.
+
+---
+
+## API Reference
+
+### Send Message
+* **Endpoint**: `POST /chat/{user_id}`
+* **Headers**: `Content-Type: application/json`
+* **Request Body**:
 ```json
 {
   "message": "What is your Enterprise pricing?"
 }
 ```
-
-**Response:**
+* **Response Body**:
 ```json
 {
   "response": "Our Enterprise plan is $499/month and includes unlimited users, SSO (SAML 2.0), audit logs, 24/7 support with 1-hour SLA, and a dedicated account manager.",
@@ -240,193 +253,53 @@ Send a message. Get a response with self-eval scores.
 }
 ```
 
----
+### Get History
+* **Endpoint**: `GET /chat/{user_id}/history`
+* **Response**: Returns full chat logs and evaluation metrics for a user across all sessions.
 
-### `GET /chat/{user_id}/history`
-Full conversation history across all sessions.
+### Delete Memory
+* **Endpoint**: `DELETE /chat/{user_id}/memory`
+* **Response**: Clears all database records for the specific user.
 
-```bash
-curl https://YOUR-APP.up.railway.app/chat/ghanshyam/history
-```
-
----
-
-### `DELETE /chat/{user_id}/memory`
-GDPR-style memory wipe.
-
-```bash
-curl -X DELETE https://YOUR-APP.up.railway.app/chat/ghanshyam/memory
-```
-
-**Response:**
+### Get Health Status
+* **Endpoint**: `GET /health`
+* **Response**:
 ```json
 {
-  "message": "Memory cleared successfully for user 'ghanshyam'.",
-  "user_id": "ghanshyam",
-  "deleted_count": 12
+  "status": "healthy",
+  "app_name": "Sales Assistant Agent",
+  "version": "1.0.0",
+  "database": "connected"
 }
 ```
 
 ---
 
-### `GET /catalog`
-Returns the product catalog.
+## Memory and Evaluation Architecture Details
+
+### Memory Implementation
+The memory layer is modeled using Python Abstract Base Classes (`MemoryInterface`). This makes swapping the active database (e.g., from PostgreSQL to SQLite, Redis, or DynamoDB) a single-file change in `app/memory/`. Currently, the `SupabaseMemory` implementation performs indexed SQL queries against a PostgreSQL database hosted by Supabase.
+
+For scaling to millions of users, we recommend:
+* Setting up Redis caches for active sessions.
+* Running LLM-based summarization cycles after 50 messages to compact older histories.
+* Sharding the PostgreSQL table by user hashes.
+
+### Self-Evaluation System
+Every transaction is validated by an independent LLM judge call. The evaluator assesses the response against the catalog search results and outputs quality metrics. Responses scoring low confidence are immediately flagged and pushed to the `flagged_logs` table for human oversight.
 
 ---
 
-### `GET /health`
-Service health check (includes DB connectivity).
+## Tech Stack
+
+* **Web Framework**: FastAPI (Async-native routing, auto Swagger documentation)
+* **AI Core**: Groq Llama-3.3-70b-versatile (high-speed tool calling)
+* **Database**: Supabase PostgreSQL (SQLAlchemy async + asyncpg backend)
+* **Deployment**: Railway (Backend containers) + Vercel (Static frontend pages)
+* **Packaging**: Docker multi-stage builds
 
 ---
 
-### `GET /chat/{user_id}/evals` *(Bonus)*
-Aggregated eval stats — confidence rates, flag rates, etc.
+## Author
 
----
-
-## 🧠 Cross-Session Memory Demo
-
-These two `curl` commands demonstrate persistent memory. **Run them sequentially** — the agent will remember the first conversation in the second call.
-
-### Call 1 — Establish context
-```bash
-curl -X POST https://YOUR-APP.up.railway.app/chat/ghanshyam \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What is your Enterprise pricing and does it include SSO?"}'
-```
-
-**Expected response:** Agent explains Enterprise is $499/mo with SSO, audit logs, and SLA.
-
-### Call 2 — Test memory (separate session, different `session_id`)
-```bash
-curl -X POST https://YOUR-APP.up.railway.app/chat/ghanshyam \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Does the plan we discussed also include audit logs? And what is the uptime guarantee?"}'
-```
-
-**Expected response:** Agent remembers the Enterprise plan discussion and answers about audit logs and 99.99% SLA — **without the user repeating any context**.
-
-> ✅ The second call uses a different `session_id` (auto-generated UUID), proving memory comes from the database — not the request payload or in-memory state.
-
----
-
-## 🗄️ Memory Design
-
-### What I used: Supabase PostgreSQL via SQLAlchemy async
-
-**Why SQL over a vector DB for this use case:**
-- Conversation history is naturally structured (role, content, timestamp)
-- Exact retrieval by `user_id` is a simple indexed query — no semantic similarity needed
-- SQL is ACID-compliant — no message is ever lost, even on crash
-- Supabase gives us free PostgreSQL hosting + instant setup
-
-**Memory abstraction (`MemoryInterface`):**
-The memory layer is a Python ABC (Abstract Base Class). The current implementation (`SupabaseMemory`) is in one file. **Swapping to SQLite, Redis, or Mem0 requires changing exactly one file** — the concrete implementation — and updating one import in `chat_service.py`. The rest of the codebase is unaffected.
-
-**What I'd use at scale:**
-- **Short-term context**: PostgreSQL (current) — fast, indexed retrieval
-- **Long-term semantic retrieval**: Add a vector DB (Qdrant, Pinecone) alongside SQL
-- **Memory compression**: After 50+ messages, use an LLM to summarize older history into a `memory_summary` column — reducing token usage while preserving context
-- **At 10M+ users**: Partition `messages` table by `user_id` hash, cache recent context in Redis
-
----
-
-## 📊 Eval Design
-
-### How it works
-
-Every `/chat` response triggers a **second Groq LLM call** that scores the first response. The evaluator receives:
-1. The original user question
-2. The agent's response
-3. The catalog context retrieved by `search_catalog`
-4. The list of tools called
-
-It returns a structured JSON with three scores:
-
-| Score | What it measures |
-|---|---|
-| `groundedness` | Is the answer based on catalog data or hallucinated? |
-| `relevance` | Does the answer actually address what the user asked? |
-| `confidence` | Combined quality signal — triggers `flagged=true` if < 0.70 |
-
-All scores are **always present** (never null), **always logged to the database**, and **always returned in the API response**.
-
-### Limitations & What I'd replace it with
-
-| Limitation | Production Solution |
-|---|---|
-| LLM self-scoring has upward bias (inflated scores) | **RAGAS** or **DeepEval** with reference-based metrics |
-| The judge and the agent use the same model | Use a **different model** as the judge (e.g., judge with GPT-4o, agent with llama) |
-| No ground-truth labels | Collect human ratings over time to fine-tune a dedicated judge model |
-| Eval adds ~1s latency | Run eval **async in background** after returning the response to the user |
-
----
-
-## 🔧 Tool Use — Not Hallucination
-
-All three tools are **real callable Python functions** — not text injected into the system prompt.
-
-| Tool | Implementation | Groq Integration |
-|---|---|---|
-| `search_catalog(query)` | Keyword search over `catalog.json` with scoring | JSON schema passed to Groq's `tools` parameter |
-| `get_user_memory(user_id)` | SQLAlchemy async query to `messages` table | JSON schema passed to Groq's `tools` parameter |
-| `flag_for_human(user_id, reason)` | Writes to `flagged_logs` table in DB | JSON schema passed to Groq's `tools` parameter |
-
-The agent loop handles Groq's `tool_calls` response, dispatches to real functions, and feeds results back as `role: "tool"` messages — standard OpenAI-compatible tool calling format.
-
----
-
-## 🚢 Railway Deployment
-
-### Step-by-step
-
-1. Push code to GitHub
-2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
-3. Select your repo
-4. Add environment variables in Railway dashboard:
-   - `GROQ_API_KEY` → your Groq key
-   - `DATABASE_URL` → your Supabase connection string
-5. Railway auto-detects `railway.toml` and deploys
-6. Copy the generated Railway URL to this README
-
-### Environment Variables on Railway
-
-| Variable | Value |
-|---|---|
-| `GROQ_API_KEY` | From console.groq.com |
-| `DATABASE_URL` | From Supabase → Settings → Database |
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` |
-| `DEBUG` | `false` |
-
----
-
-## 🛡️ Security Notes
-
-- API keys are loaded from environment variables only — never hardcoded
-- Database connections use SSL (`ssl=require` for Supabase)
-- Docker runs as a non-root user
-- `.env` is in `.gitignore` — only `.env.example` is committed
-
----
-
-## 📝 Tech Stack
-
-| Layer | Technology | Why |
-|---|---|---|
-| Framework | FastAPI | Async-native, auto docs, Pydantic integration |
-| LLM | Groq `llama-3.3-70b-versatile` | Fastest inference, native tool calling, free tier |
-| Database | Supabase PostgreSQL | Managed, free tier, PostgreSQL-compatible |
-| ORM | SQLAlchemy async + asyncpg | True async, production-grade |
-| Validation | Pydantic v2 | Type safety, auto-serialization |
-| Deployment | Railway | One-click deploy, auto-HTTPS, free tier |
-| Container | Docker | Reproducible builds, multi-stage |
-
----
-
-## 👤 Author
-
-Built as a take-home assignment demonstrating:
-- **Persistent cross-session memory** (not in-memory dicts)
-- **Real tool calling** (not string injection)
-- **Structured self-evaluation** (always present, always logged)
-- **Clean layered architecture** (memory abstraction, service separation)
+Take-home assignment solution demonstrating persistent cross-session memory, native LLM tool invocation, and automated self-evaluation.
