@@ -21,30 +21,30 @@ A production-grade AI Sales Assistant API with persistent cross-session memory, 
 
 ```mermaid
 graph TD
-    Client[Client Request] -->|POST /chat/{user_id}| FastAPI[FastAPI Route Handler]
+    Client[Client Request] -->|POST /chat/user_id| FastAPI[FastAPI Route Handler]
     FastAPI -->|Request Payload| ChatService[Chat Service]
     
     subgraph Service Layer
         ChatService -->|1. Save User Message| DB[(Supabase PostgreSQL)]
         ChatService -->|2. Invoke Agent Loop| AgentLoop[Agent Loop]
         AgentLoop -->|3. Retrieve History| MemoryLayer[Memory Layer]
-        MemoryLayer <--> DB
+        MemoryLayer --> DB
         AgentLoop -->|4. Call Tools| Tools{Tools}
         Tools -->|search_catalog| SearchCatalog[search_catalog]
         Tools -->|get_user_memory| GetUserMemory[get_user_memory]
         Tools -->|flag_for_human| FlagForHuman[flag_for_human]
         
-        SearchCatalog -->|Read| CatalogJson[(catalog.json)]
+        SearchCatalog -->|Read| CatalogJson[catalog.json]
         GetUserMemory -->|Query| DB
         FlagForHuman -->|Write Log| DB
         
         AgentLoop -->|5. Generate Response| LLM[Groq LLM Llama-3.3-70b-versatile]
         ChatService -->|6. Run Evaluation| EvalService[Evaluation Service]
-        EvalService -->|Assess Groundedness & Relevance| EvalLLM[Groq LLM Evaluator]
-        EvalService -->|7. Save Evaluation & Final Response| DB
+        EvalService -->|Assess Groundedness and Relevance| EvalLLM[Groq LLM Evaluator]
+        EvalService -->|7. Save Evaluation and Final Response| DB
     end
     
-    ChatService -->|8. Return Response & Evals| Client
+    ChatService -->|8. Return Response and Evals| Client
 ```
 
 ---
