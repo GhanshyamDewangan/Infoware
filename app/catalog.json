@@ -1,0 +1,163 @@
+{
+  "plans": [
+    {
+      "name": "Starter",
+      "price": "$49/mo",
+      "annual_price": "$529/yr (save 10%)",
+      "features": [
+        "5 users",
+        "API access",
+        "email support",
+        "basic analytics",
+        "1 workspace",
+        "community forum access"
+      ],
+      "description": "Perfect for small teams and startups just getting started.",
+      "billing": "Monthly or annual (10% discount on annual).",
+      "support": "Email support with 48-hour response time.",
+      "integrations": ["Slack", "Zapier", "CSV export"],
+      "storage": "10 GB",
+      "uptime_sla": "99.5%",
+      "trial": "14-day free trial, no credit card required.",
+      "limits": {
+        "api_calls_per_month": 10000,
+        "webhooks": 0,
+        "custom_roles": false,
+        "sso": false,
+        "audit_logs": false
+      }
+    },
+    {
+      "name": "Growth",
+      "price": "$199/mo",
+      "annual_price": "$2029/yr (save 15%)",
+      "features": [
+        "25 users",
+        "webhooks",
+        "priority support",
+        "advanced analytics",
+        "custom domains",
+        "5 workspaces",
+        "API rate limit increase",
+        "data export (JSON, CSV)",
+        "custom roles"
+      ],
+      "description": "For growing businesses that need more power and collaboration.",
+      "billing": "Monthly or annual (15% discount on annual).",
+      "support": "Priority support with 12-hour response time, live chat.",
+      "integrations": ["Slack", "Zapier", "HubSpot", "Salesforce", "Intercom", "CSV/JSON export"],
+      "storage": "100 GB",
+      "uptime_sla": "99.9%",
+      "trial": "14-day free trial, no credit card required.",
+      "limits": {
+        "api_calls_per_month": 100000,
+        "webhooks": 20,
+        "custom_roles": true,
+        "sso": false,
+        "audit_logs": false
+      }
+    },
+    {
+      "name": "Enterprise",
+      "price": "$499/mo",
+      "annual_price": "Custom pricing available for multi-year contracts.",
+      "features": [
+        "unlimited users",
+        "SSO (SAML 2.0 & OAuth)",
+        "audit logs",
+        "SLA guarantee",
+        "dedicated account manager",
+        "custom contracts",
+        "SAML integration",
+        "advanced security (IP whitelisting, 2FA enforcement)",
+        "on-premise deployment option",
+        "unlimited workspaces",
+        "99.99% uptime SLA",
+        "priority queue access",
+        "custom API limits"
+      ],
+      "description": "For large organizations with enterprise-grade security and compliance requirements.",
+      "billing": "Annual billing required. Custom pricing available for large deployments.",
+      "support": "24/7 dedicated support with 1-hour SLA, dedicated Slack channel, onboarding specialist.",
+      "integrations": [
+        "All Growth integrations",
+        "Custom API integrations",
+        "SAML SSO",
+        "Active Directory / LDAP",
+        "On-premise deployment",
+        "Custom webhook endpoints"
+      ],
+      "storage": "Unlimited",
+      "uptime_sla": "99.99%",
+      "trial": "Custom POC (proof of concept) available upon request.",
+      "limits": {
+        "api_calls_per_month": "Unlimited",
+        "webhooks": "Unlimited",
+        "custom_roles": true,
+        "sso": true,
+        "audit_logs": true
+      }
+    }
+  ],
+  "addons": [
+    {
+      "name": "Extra Storage",
+      "price": "$10/mo per 100 GB",
+      "available_for": ["Starter", "Growth"]
+    },
+    {
+      "name": "Additional Users",
+      "price": "$5/mo per user",
+      "available_for": ["Starter", "Growth"]
+    },
+    {
+      "name": "Dedicated Infrastructure",
+      "price": "Contact sales",
+      "available_for": ["Enterprise"]
+    }
+  ],
+  "faq": [
+    {
+      "question": "Can I switch plans?",
+      "answer": "Yes, you can upgrade or downgrade at any time. Charges are prorated automatically."
+    },
+    {
+      "question": "Is there a free trial?",
+      "answer": "Yes, all plans (Starter and Growth) come with a 14-day free trial. No credit card required. Enterprise customers can request a custom POC."
+    },
+    {
+      "question": "What payment methods do you accept?",
+      "answer": "We accept all major credit cards (Visa, Mastercard, Amex), ACH bank transfers, and invoice-based payments for Enterprise plans."
+    },
+    {
+      "question": "Does the Enterprise plan include SSO?",
+      "answer": "Yes. The Enterprise plan includes full SSO support via SAML 2.0 and OAuth, Active Directory/LDAP integration, and 2FA enforcement."
+    },
+    {
+      "question": "What is the uptime SLA?",
+      "answer": "Starter: 99.5%, Growth: 99.9%, Enterprise: 99.99% with financial penalty clauses for downtime."
+    },
+    {
+      "question": "Do you offer discounts for nonprofits or startups?",
+      "answer": "Yes, we offer 30% discounts for verified nonprofits and early-stage startups (under $1M ARR). Contact sales@company.com for details."
+    },
+    {
+      "question": "What is the refund policy?",
+      "answer": "We offer a full refund within 30 days of purchase if you are not satisfied. Annual plans are refunded pro-rata."
+    },
+    {
+      "question": "Is there an on-premise deployment option?",
+      "answer": "Yes, on-premise deployment is available exclusively on the Enterprise plan. Contact our sales team for infrastructure requirements."
+    }
+  ],
+  "company": {
+    "name": "SaasCo",
+    "founded": 2021,
+    "headquarters": "San Francisco, CA",
+    "contact_sales": "sales@saasco.io",
+    "contact_support": "support@saasco.io",
+    "website": "https://saasco.io",
+    "security_certifications": ["SOC 2 Type II", "ISO 27001", "GDPR Compliant"],
+    "data_residency": ["US", "EU", "APAC"]
+  }
+}
